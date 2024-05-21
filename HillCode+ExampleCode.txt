@@ -1,0 +1,140 @@
+
+
+-----------Le chiffrement de Hill en cryptographie------------
+
+
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL; -- Use numeric_std for numeric operations
+
+entity HillCrypto is
+    Port ( clk : in STD_LOGIC;
+           reset : in STD_LOGIC;
+           plain_text : in STD_LOGIC_VECTOR (15 downto 0); -- 2 characters, each 8 bits
+           key_matrix : in STD_LOGIC_VECTOR (31 downto 0); -- 4 elements, each 8 bits
+           cipher_text : out STD_LOGIC_VECTOR (15 downto 0) -- 2 characters, each 8 bits
+           );
+end HillCrypto;
+
+architecture Behavioral of HillCrypto is
+
+signal pt0, pt1 : integer range 0 to 255;
+signal k00, k01, k10, k11 : integer range 0 to 255;
+signal ct0, ct1 : integer range 0 to 255;
+
+begin
+
+process(clk, reset)
+begin
+    if reset = '1' then
+        cipher_text <= (others => '0');
+    elsif rising_edge(clk) then
+        -- Extract plain text characters
+        pt0 <= to_integer(unsigned(plain_text(15 downto 8)));
+        pt1 <= to_integer(unsigned(plain_text(7 downto 0)));
+        
+        -- Extract key matrix elements
+        k00 <= to_integer(unsigned(key_matrix(31 downto 24)));
+        k01 <= to_integer(unsigned(key_matrix(23 downto 16)));
+        k10 <= to_integer(unsigned(key_matrix(15 downto 8)));
+        k11 <= to_integer(unsigned(key_matrix(7 downto 0)));
+        
+        -- Perform Hill cipher encryption
+        ct0 <= (k00 * pt0 + k01 * pt1) mod 256;
+        ct1 <= (k10 * pt0 + k11 * pt1) mod 256;
+        
+        -- Output cipher text
+        cipher_text <= std_logic_vector(to_unsigned(ct0, 8) & to_unsigned(ct1, 8));
+    end if;
+end process;
+
+end Behavioral;
+
+
+
+--------------Exemple d'application-----------
+
+
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity HillCrypto_tb is
+-- Testbench has no ports
+end HillCrypto_tb;
+
+architecture Behavioral of HillCrypto_tb is
+
+    -- Component declaration for the Unit Under Test (UUT)
+    component HillCrypto
+        Port ( clk : in STD_LOGIC;
+               reset : in STD_LOGIC;
+               plain_text : in STD_LOGIC_VECTOR (15 downto 0); -- 2 characters, each 8 bits
+               key_matrix : in STD_LOGIC_VECTOR (31 downto 0); -- 4 elements, each 8 bits
+               cipher_text : out STD_LOGIC_VECTOR (15 downto 0) -- 2 characters, each 8 bits
+               );
+    end component;
+
+    -- Signals to connect to UUT
+    signal clk : STD_LOGIC := '0';
+    signal reset : STD_LOGIC := '0';
+    signal plain_text : STD_LOGIC_VECTOR (15 downto 0) := (others => '0');
+    signal key_matrix : STD_LOGIC_VECTOR (31 downto 0) := (others => '0');
+    signal cipher_text : STD_LOGIC_VECTOR (15 downto 0);
+
+    -- Clock period definition
+    constant clk_period : time := 10 ns;
+
+begin
+
+    -- Instantiate the Unit Under Test (UUT)
+    uut: HillCrypto
+        Port map (
+            clk => clk,
+            reset => reset,
+            plain_text => plain_text,
+            key_matrix => key_matrix,
+            cipher_text => cipher_text
+        );
+
+    -- Clock process definitions
+    clk_process :process
+    begin
+        clk <= '0';
+        wait for clk_period/2;
+        clk <= '1';
+        wait for clk_period/2;
+    end process;
+
+    -- Stimulus process
+    stim_proc: process
+    begin
+        -- Hold reset state for 20 ns.
+        reset <= '1';
+        wait for 20 ns; 
+        reset <= '0';
+        
+        -- Test case 1
+        -- Example plaintext "HI" (ASCII: H = 72, I = 73) and key matrix
+        -- Key matrix elements: k00 = 3, k01 = 3, k10 = 2, k11 = 5
+        plain_text <= "0100100001001001";  -- "HI" -> 72, 73
+        key_matrix <= "00000011000000110000001000000101";  -- 3, 3, 2, 5
+        wait for clk_period;
+        
+        -- Wait for 10 ns to check the result
+        wait for 10 ns;
+        
+        -- Check the output
+        assert (cipher_text = "0111100101001111") -- Expected ciphertext for "HI" with given key matrix
+        report "Test Case 1 Failed" severity error;
+
+        -- Test case 2
+        -- Add additional test cases as needed
+        -- ...
+
+        wait;
+    end process;
+
+end Behavioral;
